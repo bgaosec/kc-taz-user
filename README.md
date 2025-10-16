@@ -22,7 +22,7 @@ Enable the provider by adding the SPI configuration to your Keycloak installatio
 
 ```
 spi-events-listener-admin-event-logger-enabled=true
-spi-events-listener-admin-event-logger-log-file=/opt/keycloak/data/log/keycloak-admin-events.log
+spi-events-listener-admin-event-logger-log-file=/opt/keycloak/data/logs/keycloak-admin-events.log
 ```
 
 The `log-file` property is optional; if it is not provided the listener defaults to `${jboss.server.log.dir}/keycloak-admin-events.log` (falling back to the current directory when the property is absent).
@@ -45,7 +45,7 @@ To use the listener in a containerised Keycloak deployment:
      └── conf/
          └── keycloak.conf
    ```
-   The `keycloak.conf` file should include the SPI settings shown above and optionally any other server configuration you need.
+   The `keycloak.conf` file should include the SPI settings shown above and optionally any other server configuration you need. The log file will be created in `/opt/keycloak/data/logs`, which is part of the standard data directory—make sure this directory is backed by a bind mount so the log is persisted on the host.
 
 3. **Wire everything in via `docker-compose.yml`**  
    Mount the provider directory and configuration file, and enable the listener via environment variables (or command-line arguments):
@@ -61,7 +61,7 @@ To use the listener in a containerised Keycloak deployment:
          KEYCLOAK_ADMIN_PASSWORD: admin
          KC_EVENTS_LISTENERS: "jboss-logging,admin-event-logger"
          KC_SPI_EVENTS_LISTENER_ADMIN_EVENT_LOGGER_ENABLED: "true"
-         KC_SPI_EVENTS_LISTENER_ADMIN_EVENT_LOGGER_LOG_FILE: "/opt/keycloak/data/log/keycloak-admin-events.log"
+         KC_SPI_EVENTS_LISTENER_ADMIN_EVENT_LOGGER_LOG_FILE: "/opt/keycloak/data/logs/keycloak-admin-events.log"
        volumes:
          - ./keycloak/providers:/opt/keycloak/providers:ro
          - ./keycloak/conf/keycloak.conf:/opt/keycloak/conf/keycloak.conf:ro
@@ -75,4 +75,15 @@ To use the listener in a containerised Keycloak deployment:
    Inside the Keycloak admin console, open the target realm → *Events* → *Admin Events* and check **Save Events** so that admin events are emitted to listeners.
 
 5. **Restart the stack**  
-   Run `docker compose up -d --build` (or the command you normally use). The listener will write to the configured log file inside `/opt/keycloak/data/log/` (exposed on the host via the `./keycloak/data` volume).
+   Run `docker compose up -d --build` (or the command you normally use). The listener writes to `/opt/keycloak/data/logs/keycloak-admin-events.log`, which on the host corresponds to `./keycloak/data/logs/keycloak-admin-events.log`.
+
+### Troubleshooting permissions
+
+Keycloak runs as user ID `1000` inside the official container. If your host bind mount is owned by `root`, the server will fail with `AccessDeniedException` when it tries to create `/opt/keycloak/data/logs`. Before starting the stack, ensure the mounted directory is writable:
+
+```bash
+mkdir -p keycloak/data/logs
+sudo chown -R 1000:1000 keycloak/data
+```
+
+On SELinux-enabled hosts, add the `:z` or `:Z` flag to the `volumes` entry (for example `./keycloak/data:/opt/keycloak/data:Z`) so the container receives the correct context.
