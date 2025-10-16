@@ -1,4 +1,4 @@
-package com.example.keycloak.events;
+package com.securiport.keycloak.events;
 
 import java.time.Instant;
 import java.time.ZoneOffset;

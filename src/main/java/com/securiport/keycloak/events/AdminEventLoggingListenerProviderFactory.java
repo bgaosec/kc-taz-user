@@ -1,4 +1,4 @@
-package com.example.keycloak.events;
+package com.securiport.keycloak.events;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

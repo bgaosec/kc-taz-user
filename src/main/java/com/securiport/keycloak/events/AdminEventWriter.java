@@ -1,4 +1,4 @@
-package com.example.keycloak.events;
+package com.securiport.keycloak.events;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
