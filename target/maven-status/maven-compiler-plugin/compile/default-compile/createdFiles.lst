@@ -1,0 +1,3 @@
+com/example/keycloak/events/AdminEventLoggingListenerProvider.class
+com/example/keycloak/events/AdminEventWriter.class
+com/example/keycloak/events/AdminEventLoggingListenerProviderFactory.class

@@ -28,3 +28,51 @@ spi-events-listener-admin-event-logger-log-file=/opt/keycloak/data/log/keycloak-
 The `log-file` property is optional; if it is not provided the listener defaults to `${jboss.server.log.dir}/keycloak-admin-events.log` (falling back to the current directory when the property is absent).
 
 After updating the configuration, restart Keycloak. Every admin event will now be appended to the chosen log file.
+
+## Deploying with Docker Compose
+
+To use the listener in a containerised Keycloak deployment:
+
+1. **Build the JAR**  
+   Run `mvn clean package` so that `target/admin-event-logger-1.0.0-SNAPSHOT.jar` is available on the host.
+
+2. **Expose the provider and configuration to the container**  
+   Create a directory structure such as:
+   ```
+   keycloak/
+     ├── providers/
+     │   └── admin-event-logger-1.0.0-SNAPSHOT.jar
+     └── conf/
+         └── keycloak.conf
+   ```
+   The `keycloak.conf` file should include the SPI settings shown above and optionally any other server configuration you need.
+
+3. **Wire everything in via `docker-compose.yml`**  
+   Mount the provider directory and configuration file, and enable the listener via environment variables (or command-line arguments):
+   ```yaml
+   services:
+     keycloak:
+       image: quay.io/keycloak/keycloak:24.0.2
+       command:
+         - start
+         - --optimized
+       environment:
+         KEYCLOAK_ADMIN: admin
+         KEYCLOAK_ADMIN_PASSWORD: admin
+         KC_EVENTS_LISTENERS: "jboss-logging,admin-event-logger"
+         KC_SPI_EVENTS_LISTENER_ADMIN_EVENT_LOGGER_ENABLED: "true"
+         KC_SPI_EVENTS_LISTENER_ADMIN_EVENT_LOGGER_LOG_FILE: "/opt/keycloak/data/log/keycloak-admin-events.log"
+       volumes:
+         - ./keycloak/providers:/opt/keycloak/providers:ro
+         - ./keycloak/conf/keycloak.conf:/opt/keycloak/conf/keycloak.conf:ro
+         - ./keycloak/data:/opt/keycloak/data
+       ports:
+         - "8080:8080"
+   ```
+   Instead of mounting the JAR you can bake it into a derived image with `FROM quay.io/keycloak/keycloak:24.0.2` and `COPY target/*.jar /opt/keycloak/providers/`.
+
+4. **Enable admin events per realm**  
+   Inside the Keycloak admin console, open the target realm → *Events* → *Admin Events* and check **Save Events** so that admin events are emitted to listeners.
+
+5. **Restart the stack**  
+   Run `docker compose up -d --build` (or the command you normally use). The listener will write to the configured log file inside `/opt/keycloak/data/log/` (exposed on the host via the `./keycloak/data` volume).
